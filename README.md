@@ -1,2 +1,2 @@
 # html5flat
-Create flat shadows in HTML5 canvas
+This project shows how to create flat shadows using only HTML5 canvas
