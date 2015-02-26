@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .thumb {
+    height: 75px;
+    border: 1px solid #000;
+    margin: 10px 5px 0 0;
+  }
+</style>
+</head>
+<body>
+<canvas id="elCanvas" width="640" height="480"></canvas>
+
+<fieldset>
+<div><input type="file" id="files" name="files[]" /></div>
+<div><output id="list"></output></div>
+</fieldset>
+<fieldset>
+	<div><label for="desp_x">Desplazamiento X</label><input type="text" id="desp_x" value="1"/></div>
+	<div><label for="desp_y">Desplazamiento Y</label><input type="text" id="desp_y" value="1"/></div>
+	<div><label for="length">Longitud</label><input type="text" id="length" value="10"/></div>
+	<div><label for="gradient">Degradado</label><input type="checkbox" id="gradient" checked/></div>
+	<div><label for="color_r">R (max=255)</label><input type="text" id="color_r" value="128"/></div>
+	<div><label for="color_g">G (max=255)</label><input type="text" id="color_g" value="128"/></div>
+	<div><label for="color_b">B (max=255)</label><input type="text" id="color_b" value="128"/></div>
+	<div><input type="button" value="cambiar" id="cambiar"/></div>
+</fieldset>
+<fieldset>
+	<button id="guardar">Guardar</button>
+</fieldset>
+<script>
+	var canvas = document.getElementById("elCanvas");
+	var context = canvas.getContext("2d");
+	var imagen = new Image();
+	var data = null;
+	var options = {
+		rgb: {
+			r: 128,
+			g: 128,
+			b: 128
+		},
+		gradient: true,
+		length: 10,
+		displacement: {
+			x: 1,
+			y: 1
+		},
+	};
+	imagen.onload = function(){ drawImage(); };
+	
+	function drawImage(){
+		context.clearRect( 0, 0, canvas.width, canvas.height );
+		var cx = canvas.width / 2 - imagen.width / 2,
+			cy = canvas.height / 2 - imagen.height / 2;
+			
+		if( data != null ){
+			context.putImageData( data, 0, 0 );
+		}
+		context.drawImage( imagen, cx, cy );
+		
+		if( data == null ){
+			src = context.getImageData( 0, 0, canvas.width, canvas.height );
+			data = context.createImageData( canvas.width, canvas.height );
+			
+			var src_pix = src.data;
+			var data_pix = data.data;
+			
+			var w = canvas.width,
+				h = canvas.height,
+				src_offset = 0,
+				dst_offset = 0,
+				dst_x = 0,
+				dst_y = 0
+				dst_alpha = 1.0;
+			
+			for( var offset = options.length - 1; offset > 0; --offset){
+				dst_x = offset * options.displacement.x;
+				dst_y = offset * options.displacement.y;
+				if( options.gradient )
+					dst_alpha = ( 1.0 - (offset / options.length) );
+			
+				for( var y = 0; y < h; ++y ){
+					if( y + dst_y >= h )continue;
+					if( y + dst_y < 0 )continue;
+				
+					for( var x = 0; x < w; ++x ){
+						if( x + dst_x >= w )continue;
+						if( x + dst_x < 0 )continue;
+						
+						src_offset = ( y * w + x ) * 4;
+						dst_offset = ( (y+dst_y) * w + (x+dst_x) ) * 4;
+						if( src_pix[ src_offset + 3 ] > 0 ){
+							data_pix[ dst_offset     ] = options.rgb.r;
+							data_pix[ dst_offset + 1 ] = options.rgb.g;
+							data_pix[ dst_offset + 2 ] = options.rgb.b;
+							data_pix[ dst_offset + 3 ] = Math.max(data_pix[dst_offset + 3],src_pix[ src_offset + 3 ]* dst_alpha);
+						}
+					}
+				}
+			}
+			
+			drawImage();
+		}
+	}
+
+
+	function handleFileSelect(evt) {
+		var files = evt.target.files;
+
+		for (var i = 0, f; f = files[i]; i++) {
+			if (!f.type.match('image.*'))
+				continue;
+
+			var reader = new FileReader();
+
+			reader.onload = (function(theFile) {
+				return function(e) {
+					var span = document.createElement('span');
+					span.innerHTML = ['<img class="thumb" src="', e.target.result,
+								'" title="', escape(theFile.name), '"/>'].join('');
+					document.getElementById('list').innerHTML = "";
+					document.getElementById('list').insertBefore(span, null);
+			  
+					data = null;
+					imagen.src = e.target.result;
+				};
+			})(f);
+			reader.readAsDataURL(f);
+		}
+	}
+	
+	function handleChange(e){
+		options.displacement.x = parseInt( document.getElementById('desp_x').value );
+		options.displacement.y = parseInt( document.getElementById('desp_y').value );
+		options.length = parseInt( document.getElementById('length').value );
+		options.rgb.r = parseInt( document.getElementById('color_r').value );
+		options.rgb.g = parseInt( document.getElementById('color_g').value );
+		options.rgb.b = parseInt( document.getElementById('color_b').value );
+		options.gradient = document.getElementById('gradient').checked;
+		data = null;
+		drawImage();
+	}
+	
+	function handleSave(e){
+		var url = canvas.toDataURL("image/png");
+		//document.location.href = url;
+		window.open( url );
+	}
+
+	document.getElementById('files').addEventListener('change', handleFileSelect, false);
+	document.getElementById('cambiar').addEventListener('click', handleChange, false);
+	document.getElementById("guardar").addEventListener("click", handleSave, false);
+</script>
+</body>
+</html>
